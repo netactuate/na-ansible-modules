@@ -217,7 +217,7 @@ def build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
     return node, changed
 
 
-def work_on_node(desired_state='running', module=None, hv_conn=None,
+def ensure_state(desired_state='running', module=None, hv_conn=None,
                  avail_locs=[], avail_oses=[]):
     """Main function call that will check desired state
     and call the appropriate function.
@@ -290,9 +290,18 @@ def ensure_present(module=None, hv_conn=None, node_stub=None,
     pass
 
 
+def ensure_terminated(module=None, hv_conn=None, node_stub=None,
+                      avail_locs=[], avail_oses=[]):
+    """Ensure the node is not installed, uninstall it if it is installed
+    """
+    pass
+
 
 def build_node(state, module, avail_oses, avail_locs, hv_conn):
-    """Build a node, if it's not currently in a built state
+    """Build a node, if state requires it and it is currently "terminated"
+
+    This function is only called by other functions that need to ensure that
+    the node is not 'terminated' which means uninstalled.
     """
     for param in ('hostname', 'operating_system', 'mbpkgid', 'ssh_public_key'):
         if not module.params.get(param):
@@ -367,7 +376,7 @@ def main():
     try:
         # build_provisioned_node returns a dictionary so we just reference
         # the return value here
-        module.exit_json(**work_on_node(
+        module.exit_json(**ensure_state(
                                 desired_state=state, module=module,
                                 hv_conn=hv_conn, avail_locs=avail_locs,
                                 avail_oses=avail_oses))
