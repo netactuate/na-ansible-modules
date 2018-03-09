@@ -61,7 +61,7 @@ pip install -r requirements.txt
 ```yaml
 # file: roles/install/tasks/main.yml
 - name: install
-  hv_build_existing_node:
+  hv_compute_build_node:
     hostname: "{{ inventory_hostname }}"
     ssh_public_key: "{{ ssh_public_key }}"
     operating_system: "{{ operating_system }}"
