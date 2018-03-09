@@ -241,7 +241,14 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
         node_stub = None
 
     # update state based on the node not existing in the DB yet
+    # if node_stub doesn't exist, no matter what, since we don't handle
+    # canceling packages yet, this indicates the requirement for a build_node
+    # call at some point. Even ensure_terminated requires that the node exists
+    # in the DB
     if node_stub is None:
+        # whatever is called, depending on desired_state, we must install
+        # the node since it isn't in the DB yet, this means everything called
+        # here must also do an install.
         if desired_state == 'running':
             # ensure_running makes sure it is up and running,
             # making sure it is installed also
@@ -267,8 +274,21 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
                        avail_oses, avail_locs)
 
 
-def ensure_running(module=None, hv_conn=None, node_stub=None,
-                   avail_locs=[], avail_oses=[]):
+###
+#
+# ensure_<state> functions
+#
+# all will build a node if it has never been built.
+# the oddest case would be ensure_terminated (uninstalled) where the node
+# has never been built. This would require building, which will create the node
+# on disk and then do a terminate call since we don't have a "setup_node"
+# type api call that configures the node, get's it's IP, sets up which dom0 it
+# should be on and whatnot.
+#
+###
+
+def ensure_node_running(module=None, hv_conn=None, node_stub=None,
+                        avail_locs=[], avail_oses=[]):
     """Called when we want to just make sure the node is running
 
     This function calls ensure_
@@ -276,26 +296,36 @@ def ensure_running(module=None, hv_conn=None, node_stub=None,
     pass
 
 
-def ensure_stopped(module=None, hv_conn=None, node_stub=None,
-                   avail_locs=[], avail_oses=[]):
+def ensure_node_stopped(module=None, hv_conn=None, node_stub=None,
+                        avail_locs=[], avail_oses=[]):
     """Called when we want to just make sure that a node is NOT running
     """
     pass
 
 
-def ensure_present(module=None, hv_conn=None, node_stub=None,
-                   avail_locs=[], avail_oses=[]):
+def ensure_node_present(module=None, hv_conn=None, node_stub=None,
+                        avail_locs=[], avail_oses=[]):
     """Called when we want to just make sure that a node is NOT terminated
     """
     pass
 
 
-def ensure_terminated(module=None, hv_conn=None, node_stub=None,
-                      avail_locs=[], avail_oses=[]):
+def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
     """Ensure the node is not installed, uninstall it if it is installed
+    and build it, then uninstall it if it has never been built
     """
     pass
 
+###
+#
+# End ensure_node_<state> functions
+#
+###
+
+
+###
+#
+# do_<action>_node functions
 
 def build_node(state, module, avail_oses, avail_locs, hv_conn):
     """Build a node, if state requires it and it is currently "terminated"
@@ -320,14 +350,11 @@ def build_node(state, module, avail_oses, avail_locs, hv_conn):
     # get the location based on the location ID/Name provided
     location = get_location(avail_locs, module.params.get('operating_system'))
 
-
     # default to not changed
     changed = False
 
-    # do stuff if terminated
-    if node_stub.state == 'terminated':
-        node, changed = build_terminated(node_stub, image, hostname, ssh_key)
-
+    # in order to return, we must have a node object and a status (changed) of
+    # whether or not state has changed to the desired state
     return {
         'changed': changed,
         'device': serialize_device(node)
