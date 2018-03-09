@@ -86,6 +86,35 @@ def get_ssh_auth(ssh_key):
     return auth.pubkey
 
 
+def build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
+    # set up params to build the node
+    params = {
+        'mbpkgid': node_stub.id,
+        'image': image.id,
+        'fqdn': hostname,
+        'location': node_stub.extra['location'],
+        'ssh_key': ssh_key
+    }
+
+    # do it using the api
+    try:
+        hv_conn.connection.request(API_ROOT + '/cloud/server/build',
+                                   data=json.dumps(params),
+                                   method='POST').object
+    except Exception:
+        _msg = "Failed to build node for mbpkgid {}".format(node_stub.id)
+        raise Exception(_msg)
+        # get the new version of the node, hopefully showing
+        # that it's built and all that
+        node = wait_for_build_complete(hv_conn, node_stub.id)
+
+        if node.state != 'terminated':
+            changed = True
+        else:
+            node = node_stub
+    return node, changed
+
+
 def build_node(state, module, hv_conn):
     """Build a node, if it's not currently in a built state
     """
@@ -109,34 +138,9 @@ def build_node(state, module, hv_conn):
     # default to not changed
     changed = False
 
-    # only build if it's still 'terminated'
+    # do stuff if terminated
     if node_stub.state == 'terminated':
-
-        # set up params to build the node
-        params = {
-            'mbpkgid': node_stub.id,
-            'image': image.id,
-            'fqdn': hostname,
-            'location': node_stub.extra['location'],
-            'ssh_key': ssh_key
-        }
-
-        # do it using the api
-        try:
-            hv_conn.connection.request(API_ROOT + '/cloud/server/build',
-                                       data=json.dumps(params),
-                                       method='POST').object
-        except Exception:
-            _msg = "Failed to build node for mbpkgid {}".format(node_stub.id)
-            raise Exception(_msg)
-        # get the new version of the node, hopefully showing
-        # that it's built and all that
-        node = wait_for_build_complete(hv_conn, node_stub.id)
-
-        if node.state != 'terminated':
-            changed = True
-    else:
-        node = node_stub
+        node, changed = build_terminated(node_stub, image, hostname, ssh_key)
 
     return {
         'changed': changed,
