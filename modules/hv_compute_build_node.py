@@ -229,34 +229,53 @@ def build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
 # should be on and whatnot.
 #
 ###
-def ensure_node_running(module=None, hv_conn=None, node_stub=None,
-                        avail_locs=[], avail_oses=[]):
+def ensure_node_running(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
     """Called when we want to just make sure the node is running
 
     This function calls ensure_
     """
-    pass
+    changed = False
+    node = node_stub
+
+    return changed, node
 
 
-def ensure_node_stopped(module=None, hv_conn=None, node_stub=None,
-                        avail_locs=[], avail_oses=[]):
+def ensure_node_stopped(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
     """Called when we want to just make sure that a node is NOT running
     """
-    pass
+    changed = False
+    node = node_stub
+
+    return changed, node
 
 
-def ensure_node_present(module=None, hv_conn=None, node_stub=None,
-                        avail_locs=[], avail_oses=[]):
+def ensure_node_present(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
     """Called when we want to just make sure that a node is NOT terminated
     """
-    pass
+    changed = False
+    node = node_stub
+
+    return changed, node
 
 
 def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
     """Ensure the node is not installed, uninstall it if it is installed
     and build it, then uninstall it if it has never been built
     """
-    pass
+    changed = False
+    node = node_stub
+
+    return changed, node
+
 ###
 #
 # End Section: ensure_node_<state> functions
@@ -268,14 +287,18 @@ def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
 #
 # Section: do_<action>_node functions
 #
-# this includes do_build_node, do_shutdown_node, do_bootup_node
-# and do_uninstall_node, and any others we need later but these should cover it
+# this includes do_build_node, do_stop_node, do_start_node
+# and do_terminate_node, and any others we need later but these
+# should cover it for now
 #
 # All these functions are called from within an ensure_node_<state> functions
-# and perform the actual work on the node
+# and perform the actual state changing work on the node
 #
 ###
-def do_build_node(state, module, avail_oses, avail_locs, hv_conn):
+def do_build_node(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
     """Build a node, if state requires it and it is currently "terminated"
 
     This function is only called by other functions that need to ensure that
@@ -301,12 +324,27 @@ def do_build_node(state, module, avail_oses, avail_locs, hv_conn):
     # default to not changed
     changed = False
 
-    # in order to return, we must have a node object and a status (changed) of
-    # whether or not state has changed to the desired state
-    return {
-        'changed': changed,
-        'device': serialize_device(node)
-    }
+
+def do_terminate_node(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
+    pass
+
+
+def do_start_node(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
+    pass
+
+
+def do_stop_node(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
+    pass
+
 ###
 #
 # End do_<action>_node functions
@@ -341,7 +379,7 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
     Note that 'present' equates to !terminated
     """
     # TRY to get the node from the mbpkgid provided (required)
-    # Everything else we call MUST account for node_stub being None
+    # Everything else we call MUST account for node_stub being None.
     # node_stub being None indicates it has never been built.
     try:
         node_stub = hv_conn.ex_get_node(module.params.get('mbpkgid'))
@@ -361,29 +399,74 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
         if desired_state == 'running':
             # ensure_running makes sure it is up and running,
             # making sure it is installed also
-            ensure_node_running(module=module, hv_conn=hv_conn,
-                                node_stub=node_stub, avail_locs=avail_locs,
-                                avail_oses=avail_oses)
+            changed, node = ensure_node_running(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    avail_locs=avail_locs, avail_oses=avail_oses
+            )
 
         if desired_state == 'stopped':
             # ensure that the node is stopped, this should include
             # making sure it is installed also
-            ensure_node_stopped(module=module, hv_conn=hv_conn,
-                                node_stub=node_stub, avail_locs=avail_locs,
-                                avail_oses=avail_oses)
+            changed, node = ensure_node_stopped(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    avail_locs=avail_locs, avail_oses=avail_oses
+            )
 
         if desired_state == 'present':
             # ensure that the node is installed, we can determine this by
             # making sure it is built (not terminated)
-            ensure_node_present(module=module, hv_conn=hv_conn,
-                                node_stub=node_stub, avail_locs=avail_locs,
-                                avail_oses=avail_oses)
+            changed, node = ensure_node_present(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    avail_locs=avail_locs, avail_oses=avail_oses
+            )
+
+        if desired_state == 'terminated':
+            # Since there is no node, we should return an error to let the
+            # user know they need to make sure it exists first.
+            # set the error message so it is informative.
+            _msg = "Cannot terminate node that has never been built"
+            raise Exception(_msg)
 
     # update state based on the node existing
     else:
         if desired_state == 'running':
-            do_build_node(desired_state, module, hv_conn, node_stub,
-                          avail_oses, avail_locs)
+            # ensure_running makes sure it is up and running,
+            # making sure it is installed also
+            changed, node = ensure_node_running(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    avail_locs=avail_locs, avail_oses=avail_oses
+            )
+
+        if desired_state == 'stopped':
+            # ensure that the node is stopped, this should include
+            # making sure it is installed also
+            changed, node = ensure_node_stopped(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    avail_locs=avail_locs, avail_oses=avail_oses
+            )
+
+        if desired_state == 'present':
+            # ensure that the node is installed, we can determine this by
+            # making sure it is built (not terminated)
+            changed, node = ensure_node_present(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    avail_locs=avail_locs, avail_oses=avail_oses
+            )
+
+        if desired_state == 'terminated':
+            # Since there is no node, we should return an error to let the
+            # user know they need to make sure it exists first.
+            # set the error message so it is informative.
+            changed, node = ensure_node_terminated(
+                    module=module, hv_conn=hv_conn, node_stub=node_stub
+            )
+
+    # in order to return, we must have a node object and a status (changed) of
+    # whether or not state has changed to the desired state
+    return {
+        'changed': changed,
+        'device': serialize_device(node)
+    }
 
 
 def main():
@@ -418,7 +501,7 @@ def main():
     hv_conn = hv_driver(auth_token)
 
     # get the desired state, I'm pretty sure
-    desired_state = module.params.get('state')
+    desired_state = module.params.get('state').lower()
 
     # pass in a list of locations and oses that are allowed to be used.
     # these can't be in the module instantiation above since they are
