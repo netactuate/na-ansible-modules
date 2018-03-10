@@ -200,9 +200,11 @@ def build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
 
     # do it using the api
     try:
-        hv_conn.connection.request(API_ROOT + '/cloud/server/build',
-                                   data=json.dumps(params),
-                                   method='POST').object
+        hv_conn.connection.request(
+                    API_ROOT + '/cloud/server/build',
+                    data=json.dumps(params),
+                    method='POST'
+                ).object
     except Exception:
         _msg = "Failed to build node for mbpkgid {}".format(node_stub.id)
         raise Exception(_msg)
@@ -288,7 +290,7 @@ def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
 # Section: do_<action>_node functions
 #
 # this includes do_build_node, do_stop_node, do_start_node
-# and do_terminate_node, and any others we need later but these
+# and do_delete_node, and any others we need later but these
 # should cover it for now
 #
 # All these functions are called from within an ensure_node_<state> functions
@@ -325,11 +327,15 @@ def do_build_node(
     changed = False
 
 
-def do_terminate_node(
+def do_delete_node(
             module=None, hv_conn=None, node_stub=None,
             avail_locs=[], avail_oses=[]
         ):
-    pass
+    """uninstall the node, making sure it's terminated before returning"""
+    deleted = hv_conn.connection.ex_delete_node(node=node_stub)
+    if not deleted:
+        _msg = "Seems we had trouble deleting the node"
+        raise Exception(_msg)
 
 
 def do_start_node(
