@@ -233,10 +233,9 @@ def do_build_new_node(hv_conn, h_parms):
         'mbpkgid': h_parms['mbpkgid'],
         'image': h_parms['image'].id,
         'fqdn': h_parms['hostname'],
-        'location': h_parms['location'],
+        'location': h_parms['location'].id,
         'ssh_key': h_parms['ssh_key']
     }
-    print(params)
 
     # do it using the api
     try:
@@ -245,9 +244,9 @@ def do_build_new_node(hv_conn, h_parms):
                     data=json.dumps(params),
                     method='POST'
                 ).object
-    except Exception:
-        _msg = "Failed to build node for mbpkgid {}".format(h_parms['mbpkgid'])
-        raise Exception(_msg)
+    except Exception as e:
+        raise Exception("Failed to build node for mbpkgid {} with: {}"
+                        .format(h_parms['mbpkgid'], str(e)))
 
     # get the new version of the node, hopefully showing
     # using wait_for_build_complete defauilt timeout (10 minutes)
