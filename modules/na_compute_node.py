@@ -42,6 +42,11 @@ ALLOWED_STATES = ['building', 'pending', 'running', 'stopping',
 API_ROOT = ''
 
 
+###
+#
+# Section: Helper functions
+#
+##
 def _get_valid_hostname(hostname):
     """The user will set the hostname so we have to check if it's valid
     hostname:   string of an intended hostname
@@ -202,6 +207,12 @@ def _wait_for_state(
         time.sleep(interval)
     return try_node
 
+###
+#
+# End Section: Helper functions
+#
+##
+
 
 ###
 #
@@ -311,7 +322,7 @@ def do_stop_node(
 
 ###
 #
-# End do_<action>_node functions
+# End Section: do_<action>_node functions
 #
 ###
 
@@ -582,7 +593,7 @@ def main():
         module.fail_json(msg=_fail_msg)
     ###
     #
-    # End Main Section
+    # End Section: Main functions
     #
     ###
 
