@@ -181,44 +181,6 @@ def get_os(avail_oses, os_arg):
     return image
 
 
-def build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
-    """Build nodes that have been uninstalled
-
-
-    """
-    # TODO: We need to check if there is a location associated with the node
-    # otherwise we need to set the location based on passed in params.
-
-    # set up params to build the node
-    params = {
-        'mbpkgid': node_stub.id,
-        'image': image.id,
-        'fqdn': hostname,
-        'location': node_stub.extra['location'],
-        'ssh_key': ssh_key
-    }
-
-    # do it using the api
-    try:
-        hv_conn.connection.request(
-                    API_ROOT + '/cloud/server/build',
-                    data=json.dumps(params),
-                    method='POST'
-                ).object
-    except Exception:
-        _msg = "Failed to build node for mbpkgid {}".format(node_stub.id)
-        raise Exception(_msg)
-        # get the new version of the node, hopefully showing
-        # that it's built and all that
-        node = wait_for_build_complete(hv_conn, node_stub.id)
-
-        if node.state != 'terminated':
-            changed = True
-        else:
-            node = node_stub
-    return node, changed
-
-
 ###
 #
 # Section: ensure_<state> functions
@@ -237,11 +199,13 @@ def ensure_node_running(
         ):
     """Called when we want to just make sure the node is running
 
-    This function calls ensure_
+    This function calls ensure state == 'running'
     """
     changed = False
     node = node_stub
-
+    if node.state != 'running':
+        # do some stuff
+        pass
     return changed, node
 
 
@@ -253,7 +217,9 @@ def ensure_node_stopped(
     """
     changed = False
     node = node_stub
-
+    if node.state != 'stopped':
+        # do some stuff
+        pass
     return changed, node
 
 
@@ -263,9 +229,15 @@ def ensure_node_present(
         ):
     """Called when we want to just make sure that a node is NOT terminated
     """
+    # default state
     changed = False
     node = node_stub
 
+    # only do anything if the node.state == 'terminated'
+    # default is to leave 'changed' as False and return it and the node.
+    if node.state == 'terminated':
+        # otherwise,,, build the node.
+        pass
     return changed, node
 
 
@@ -273,9 +245,18 @@ def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
     """Ensure the node is not installed, uninstall it if it is installed
     and build it, then uninstall it if it has never been built
     """
+    # default return values
     changed = False
     node = node_stub
 
+    # uninstall the node if it is not showing up as terminated.
+    if node.state != 'terminated':
+        # uninstall the node
+        destroyed = module.destroy_node(node)
+        if destroyed:
+            changed = True
+        else:
+            raise Exception("Could not destroy node")
     return changed, node
 
 ###
@@ -350,6 +331,44 @@ def do_stop_node(
             avail_locs=[], avail_oses=[]
         ):
     pass
+
+
+def do_build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
+    """Build nodes that have been uninstalled
+
+    NOTE: leaving here in case I need some code from here...
+    """
+    # TODO: We need to check if there is a location associated with the node
+    # otherwise we need to set the location based on passed in params.
+
+    # set up params to build the node
+    params = {
+        'mbpkgid': node_stub.id,
+        'image': image.id,
+        'fqdn': hostname,
+        'location': node_stub.extra['location'],
+        'ssh_key': ssh_key
+    }
+
+    # do it using the api
+    try:
+        hv_conn.connection.request(
+                    API_ROOT + '/cloud/server/build',
+                    data=json.dumps(params),
+                    method='POST'
+                ).object
+    except Exception:
+        _msg = "Failed to build node for mbpkgid {}".format(node_stub.id)
+        raise Exception(_msg)
+        # get the new version of the node, hopefully showing
+        # that it's built and all that
+        node = wait_for_build_complete(hv_conn, node_stub.id)
+
+        if node.state != 'terminated':
+            changed = True
+        else:
+            node = node_stub
+    return node, changed
 
 ###
 #
