@@ -236,6 +236,7 @@ def do_build_new_node(hv_conn, h_parms):
         'location': h_parms['location'],
         'ssh_key': h_parms['ssh_key']
     }
+    print(params)
 
     # do it using the api
     try:
@@ -317,7 +318,7 @@ def do_build_terminated_node(hv_conn, node_stub, h_parms):
 # should be on and whatnot.
 #
 ###
-def ensure_node_running(hv_conn=None, node_stub=None):
+def ensure_node_running(hv_conn=None, node_stub=None, h_parms=None):
     """Called when we want to just make sure the node is running
 
     This function calls ensure state == 'running'
@@ -325,7 +326,13 @@ def ensure_node_running(hv_conn=None, node_stub=None):
     changed = False
     node = node_stub
     if node.state != 'running':
-        running = hv_conn.ex_start_node(node_stub)
+        if node.state == 'terminated':
+            changed, node = do_build_terminated_node(
+                    hv_conn, node_stub, h_parms
+            )
+        running = hv_conn.connection.request(
+            '{}{}{}'.format(API_ROOT, '/cloud/server/start/', node.id),
+            method='POST')
         if not running:
             raise Exception("Seems we had trouble starting the node")
         else:
@@ -388,7 +395,7 @@ def ensure_node_terminated(hv_conn=None, node_stub=None):
     # uninstall the node if it is not showing up as terminated.
     if node.state != 'terminated':
         # uninstall the node
-        deleted = hv_conn.connection.ex_delete_node(node=node)
+        deleted = hv_conn.ex_delete_node(node=node)
         if not deleted:
             raise Exception("Seems we had trouble deleting the node")
         else:
@@ -468,7 +475,7 @@ def ensure_state(
             # ensure_running makes sure it is up and running,
             # making sure it is installed also
             changed, node_stub = ensure_node_running(
-                    hv_conn=hv_conn, node_stub=node_stub
+                    hv_conn=hv_conn, node_stub=node_stub, h_parms=h_parms
             )
             if 'tmp_changed' in vars():
                 # update changed if we had to build it.
