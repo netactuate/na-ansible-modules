@@ -446,11 +446,7 @@ def ensure_state(
     # TRY to get the node from the mbpkgid provided (required)
     # Everything else we call MUST account for node_stub being None.
     # node_stub being None indicates it has never been built.
-    try:
-        node_stub = _get_node_stub(h_parms['mbpkgid'])
-    except Exception as e:
-        # node doesn't exist, must create it and then make sure it's running
-        node_stub = None
+    node_stub = _get_node_stub(h_parms['mbpkgid'])
 
     ###
     # DIE if the node has never been built and we are being asked to uninstall
