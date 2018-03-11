@@ -145,7 +145,7 @@ def _get_location(avail_locs, loc_arg):
     """
     location = None
     loc_possible_list = [loc for loc in avail_locs
-                         if os.name == loc_arg or loc.id == loc_arg]
+                         if loc.name == loc_arg or loc.id == loc_arg]
 
     if not loc_possible_list:
         _msg = "Image '%s' not found" % loc_arg
