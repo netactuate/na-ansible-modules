@@ -298,28 +298,6 @@ def do_build_terminated_node(hv_conn, node_stub, h_parms):
     changed = True
     return changed, node
 
-
-def do_delete_node(
-            module=None, hv_conn=None, node_stub=None,
-            avail_locs=[], avail_oses=[]
-        ):
-    """uninstall the node, making sure it's terminated before returning"""
-
-
-def do_start_node(
-            module=None, hv_conn=None, node_stub=None,
-            avail_locs=[], avail_oses=[]
-        ):
-    pass
-
-
-def do_stop_node(
-            module=None, hv_conn=None, node_stub=None,
-            avail_locs=[], avail_oses=[]
-        ):
-    pass
-
-
 ###
 #
 # End Section: do_<action>_node functions
@@ -339,9 +317,7 @@ def do_stop_node(
 # should be on and whatnot.
 #
 ###
-def ensure_node_running(
-            module=None, hv_conn=None, node_stub=None, h_parms=None
-        ):
+def ensure_node_running(hv_conn=None, node_stub=None, h_parms=None):
     """Called when we want to just make sure the node is running
 
     This function calls ensure state == 'running'
@@ -349,21 +325,32 @@ def ensure_node_running(
     changed = False
     node = node_stub
     if node.state != 'running':
-        # do some stuff
+        # result = ex_stop_node(node_stub)
         pass
     return changed, node
 
 
-def ensure_node_stopped(
-            module=None, hv_conn=None, node_stub=None, h_parms=None
-        ):
+def ensure_node_stopped(hv_conn=None, node_stub=None, h_parms=None):
     """Called when we want to just make sure that a node is NOT running
     """
     changed = False
     node = node_stub
     if node.state != 'stopped':
-        # do some stuff
-        pass
+        stopped = hv_conn.ex_stop_node(node_stub)
+        if not stopped:
+            raise Exception("Seems we had trouble stopping the node")
+        else:
+            # wait for the node to say it's deleted
+            changed = True
+            # wait for the node
+            node = _wait_for_state(
+                hv_conn=hv_conn,
+                node_id=node.id,
+                desired_state='stopped',
+                timeout=30,
+                interval=10.0
+            )
+            changed = True
     return changed, node
 
 
@@ -394,12 +381,9 @@ def ensure_node_terminated(hv_conn=None, node_stub=None):
         # uninstall the node
         deleted = hv_conn.connection.ex_delete_node(node=node)
         if not deleted:
-            _msg = "Seems we had trouble deleting the node"
-            raise Exception(_msg)
+            raise Exception("Seems we had trouble deleting the node")
         else:
-            # wait for the node to say it's deleted
-            changed = True
-            # wait for the node
+            # wait for the node to say it's terminated
             node = _wait_for_state(
                 hv_conn=hv_conn,
                 node_id=node.id,
@@ -456,19 +440,19 @@ def ensure_state(
         raise Exception("Cannot terminate a node that doesn't exist."
                         "Please build first, then you can uninstall it.")
 
-    ###
-    # we got here so there must be a node
-    ###
-
     # We only need to do any work if the below conditions exist
     # otherwise we will return the defaults
-    if node_stub is None or desired_state != node_stub.state:
+    if node_stub is None or node_stub.state != desired_state:
         # main block here, no else as we would just return
         # build the node if it doesn't exist
+        # tmp_changed is mainly for 'running' check below since building
+        # a new node will put it in a 'running' state and we want to indicates
+        # that it has changed (since it was built)
+        tmp_changed = False
         if node_stub is None:
             # all  states require the node to be installed so do that first.
-            tmp_changed, node = ensure_node_present(
-                hv_conn=hv_conn, node_stub=node_stub, h_parms=h_parms
+            tmp_changed, node_stub = do_build_new_node(
+                hv_conn=hv_conn, h_parms=h_parms
             )
 
         # update state based on the node existing
@@ -478,6 +462,9 @@ def ensure_state(
             changed, node = ensure_node_running(
                     hv_conn=hv_conn, node_stub=node_stub, h_parms=h_parms
             )
+            # update changed if we had to build it.
+            if changed != tmp_changed:
+                changed = tmp_changed
 
         if desired_state == 'stopped':
             # ensure that the node is stopped, this should include
