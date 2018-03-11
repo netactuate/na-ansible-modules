@@ -325,7 +325,7 @@ def ensure_node_running(hv_conn=None, node_stub=None):
     changed = False
     node = node_stub
     if node.state != 'running':
-        stopped = hv_conn.ex_stop_node(node_stub)
+        stopped = hv_conn.ex_start_node(node_stub)
         if not stopped:
             raise Exception("Seems we had trouble starting the node")
         else:
