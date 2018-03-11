@@ -468,7 +468,7 @@ def ensure_state(
         if desired_state == 'running':
             # ensure_running makes sure it is up and running,
             # making sure it is installed also
-            changed, node = ensure_node_running(
+            changed, node_stub = ensure_node_running(
                     hv_conn=hv_conn, node_stub=node_stub
             )
             # update changed if we had to build it.
@@ -478,19 +478,19 @@ def ensure_state(
         if desired_state == 'stopped':
             # ensure that the node is stopped, this should include
             # making sure it is installed also
-            changed, node = ensure_node_stopped(
+            changed, node_stub = ensure_node_stopped(
                     hv_conn=hv_conn, node_stub=node_stub
             )
 
         if desired_state == 'present':
             # ensure that the node is installed, we can determine this by
             # making sure it is built (not terminated)
-            changed, node = ensure_node_present(
+            changed, node_stub = ensure_node_present(
                     hv_conn=hv_conn, node_stub=node_stub, h_parms=h_parms
             )
 
         if desired_state == 'terminated':
-            changed, node = ensure_node_terminated(
+            changed, node_stub = ensure_node_terminated(
                     hv_conn=hv_conn, node_stub=node_stub
             )
 
@@ -498,7 +498,7 @@ def ensure_state(
     # whether or not state has changed to the desired state
     return {
         'changed': changed,
-        'device': _serialize_device(node)
+        'device': _serialize_device(node_stub)
     }
 
 
