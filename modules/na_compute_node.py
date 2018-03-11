@@ -53,19 +53,6 @@ def get_valid_hostname(hostname):
     return hostname
 
 
-def wait_for_build_complete(hv_conn, node_id, timeout=600, interval=10.0):
-    try_node = None
-    for i in range(0, timeout, int(interval)):
-        try:
-            try_node = hv_conn.ex_get_node(node_id)
-            if try_node.state == 'running':
-                break
-        except Exception:
-            pass
-        time.sleep(interval)
-    return try_node
-
-
 def get_ssh_auth(ssh_key):
     key = open(ssh_key).read()
     auth = NodeAuthSSHKey(pubkey=key)
@@ -181,6 +168,31 @@ def get_os(avail_oses, os_arg):
     return image
 
 
+def wait_for_state(
+            hv_conn=None, node_id=None,
+            timeout=600, interval=10.0,
+            desired_state=None
+        ):
+    """Called after do_build_node to wait to make sure it built OK
+    Arguments:
+        hv_conn:            object  libcloud connectionCls
+        node_id:            int     ID of node
+        timeout:            int     timeout in seconds
+        interval:           float   sleep time between loops
+        desired_state:      string  string of the desired state
+    """
+    try_node = None
+    for i in range(0, timeout, int(interval)):
+        try:
+            try_node = hv_conn.ex_get_node(node_id)
+            if try_node.state == desired_state:
+                break
+        except Exception:
+            pass
+        time.sleep(interval)
+    return try_node
+
+
 ###
 #
 # Section: ensure_<state> functions
@@ -237,13 +249,14 @@ def ensure_node_present(
     # default is to leave 'changed' as False and return it and the node.
     if node.state == 'terminated':
         # otherwise,,, build the node.
-        pass
+        present = module.
     return changed, node
 
 
 def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
     """Ensure the node is not installed, uninstall it if it is installed
     and build it, then uninstall it if it has never been built
+
     """
     # default return values
     changed = False
@@ -252,11 +265,22 @@ def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
     # uninstall the node if it is not showing up as terminated.
     if node.state != 'terminated':
         # uninstall the node
-        destroyed = module.destroy_node(node)
-        if destroyed:
-            changed = True
+        deleted = hv_conn.connection.ex_delete_node(node=node)
+        if not deleted:
+            _msg = "Seems we had trouble deleting the node"
+            raise Exception(_msg)
         else:
-            raise Exception("Could not destroy node")
+            # wait for the node to say it's deleted
+            changed = True
+            # wait for the node
+            node = wait_for_state(
+                hv_conn=hv_conn,
+                node_id=node.id,
+                desired_state='termindated'
+                timeout=30,
+                interval=10.0
+            )
+            changed = True
     return changed, node
 
 ###
@@ -278,7 +302,7 @@ def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
 # and perform the actual state changing work on the node
 #
 ###
-def do_build_node(
+def do_build_new_node(
             module=None, hv_conn=None, node_stub=None,
             avail_locs=[], avail_oses=[]
         ):
@@ -313,10 +337,7 @@ def do_delete_node(
             avail_locs=[], avail_oses=[]
         ):
     """uninstall the node, making sure it's terminated before returning"""
-    deleted = hv_conn.connection.ex_delete_node(node=node_stub)
-    if not deleted:
-        _msg = "Seems we had trouble deleting the node"
-        raise Exception(_msg)
+
 
 
 def do_start_node(
@@ -333,13 +354,16 @@ def do_stop_node(
     pass
 
 
-def do_build_terminated(hv_conn, node_stub, image, hostname, ssh_key):
+def do_build_terminated_node(
+            module=None, hv_conn=None, node_stub=None,
+            avail_locs=[], avail_oses=[]
+        ):
     """Build nodes that have been uninstalled
 
     NOTE: leaving here in case I need some code from here...
     """
-    # TODO: We need to check if there is a location associated with the node
-    # otherwise we need to set the location based on passed in params.
+    # make sure we get the ssh_key
+    ssh_key = get_ssh_auth(module.params.get('ssh_public_key'))
 
     # set up params to build the node
     params = {
