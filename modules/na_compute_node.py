@@ -253,7 +253,7 @@ def ensure_node_present(
     return changed, node
 
 
-def ensure_node_terminated(module=None, hv_conn=None, node_stub=None):
+def ensure_node_terminated(hv_conn=None, node_stub=None):
     """Ensure the node is not installed, uninstall it if it is installed
     and build it, then uninstall it if it has never been built
 
@@ -316,17 +316,6 @@ def do_build_new_node(
             raise Exception("%s parameter is required for building "
                             "device." % param)
 
-    # get and check the hostname, raises exception if fails
-    hostname = get_valid_hostname(module.params.get('hostname'))
-
-    # make sure we get the ssh_key
-    ssh_key = get_ssh_auth(module.params.get('ssh_public_key'))
-
-    # get the image based on the os ID/Name provided
-    image = get_os(avail_oses, module.params.get('operating_system'))
-
-    # get the location based on the location ID/Name provided
-    location = get_location(avail_locs, module.params.get('operating_system'))
 
     # default to not changed
     changed = False
@@ -355,8 +344,9 @@ def do_stop_node(
 
 
 def do_build_terminated_node(
-            module=None, hv_conn=None, node_stub=None,
-            avail_locs=[], avail_oses=[]
+            module=None,
+            hv_conn=None,
+            node_stub=None
         ):
     """Build nodes that have been uninstalled
 
@@ -413,19 +403,17 @@ def do_build_terminated_node(
 # mainly to keep main() clean and simple.
 #
 ###
-def ensure_state(desired_state='running', module=None, hv_conn=None,
-                 avail_locs=[], avail_oses=[]):
+def ensure_state(
+            desired_state='running',
+            module=None,
+            hv_conn=None,
+            h_parms={}
+        ):
     """Main function call that will check desired state
     and call the appropriate function and handle the respones back to main.
 
     The called functions will check node state and call state altering
     functions as needed.
-
-    Here for a NOTE so I don't have to keep scrolling to the top
-    ALLOWED_STATES = ['building', 'pending', 'running', 'stopping',
-                      'rebooting', 'starting', 'terminated', 'stopped']
-    possible desired states = ['running', 'stopped', 'terminated', 'present']
-    Note that 'present' equates to !terminated
     """
     # TRY to get the node from the mbpkgid provided (required)
     # Everything else we call MUST account for node_stub being None.
@@ -442,9 +430,12 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
     # call at some point. Even ensure_terminated requires that the node exists
     # in the DB
     if node_stub is None:
-        # whatever is called, depending on desired_state, we must install
-        # the node since it isn't in the DB yet, this means everything called
-        # here must also do an install.
+        # all  states require the node to be installed so do that first.
+        changed, node = ensure_node_present(
+            module=module,
+            hv_conn=hv_conn,
+            node_stub=node_stub
+        )
         if desired_state == 'running':
             # ensure_running makes sure it is up and running,
             # making sure it is installed also
@@ -465,16 +456,9 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
             # ensure that the node is installed, we can determine this by
             # making sure it is built (not terminated)
             changed, node = ensure_node_present(
-                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    hv_conn=hv_conn, node_stub=node_stub,
                     avail_locs=avail_locs, avail_oses=avail_oses
             )
-
-        if desired_state == 'terminated':
-            # Since there is no node, we should return an error to let the
-            # user know they need to make sure it exists first.
-            # set the error message so it is informative.
-            _msg = "Cannot terminate node that has never been built"
-            raise Exception(_msg)
 
     # update state based on the node existing
     else:
@@ -482,7 +466,7 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
             # ensure_running makes sure it is up and running,
             # making sure it is installed also
             changed, node = ensure_node_running(
-                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    hv_conn=hv_conn, node_stub=node_stub,
                     avail_locs=avail_locs, avail_oses=avail_oses
             )
 
@@ -490,7 +474,7 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
             # ensure that the node is stopped, this should include
             # making sure it is installed also
             changed, node = ensure_node_stopped(
-                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    hv_conn=hv_conn, node_stub=node_stub,
                     avail_locs=avail_locs, avail_oses=avail_oses
             )
 
@@ -498,16 +482,13 @@ def ensure_state(desired_state='running', module=None, hv_conn=None,
             # ensure that the node is installed, we can determine this by
             # making sure it is built (not terminated)
             changed, node = ensure_node_present(
-                    module=module, hv_conn=hv_conn, node_stub=node_stub,
+                    hv_conn=hv_conn, node_stub=node_stub,
                     avail_locs=avail_locs, avail_oses=avail_oses
             )
 
         if desired_state == 'terminated':
-            # Since there is no node, we should return an error to let the
-            # user know they need to make sure it exists first.
-            # set the error message so it is informative.
             changed, node = ensure_node_terminated(
-                    module=module, hv_conn=hv_conn, node_stub=node_stub
+                    hv_conn=hv_conn, node_stub=node_stub
             )
 
     # in order to return, we must have a node object and a status (changed) of
@@ -561,13 +542,37 @@ def main():
     # available operating systems
     avail_oses = hv_conn.list_images()
 
+    ##
+    # get the passed in parameters
+    ##
+    h_parms = {}
+    # get and check the hostname, raises exception if fails
+    h_parms['hostname'] = get_valid_hostname(module.params.get('hostname'))
+
+    # make sure we get the ssh_key
+    h_parms['ssh_key'] = get_ssh_auth(module.params.get('ssh_public_key'))
+
+    # get the image based on the os ID/Name provided
+    # the get_os function call will raise an exception if there is a problem
+    h_parms['image'] = get_os(
+        avail_oses,
+        module.params.get('operating_system')
+    )
+
+    # get the location based on the location ID/Name provided
+    # the get_location function call will raise an exception
+    # if there is a problem
+    h_parms['location'] = get_location(
+        avail_locs,
+        module.params.get('operating_system')
+    )
+
     try:
         # build_provisioned_node returns a dictionary so we just reference
         # the return value here
         module.exit_json(**ensure_state(
                                 desired_state=desired_state, module=module,
-                                hv_conn=hv_conn, avail_locs=avail_locs,
-                                avail_oses=avail_oses))
+                                hv_conn=hv_conn, h_parms=h_parms))
     except Exception as e:
         _fail_msg = ('failed to set machine state '
                      '%s, error: %s' % (desired_state, str(e)))
