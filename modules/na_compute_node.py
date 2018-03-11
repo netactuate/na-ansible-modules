@@ -567,7 +567,7 @@ def main():
     # if there is a problem
     h_parms['location'] = _get_location(
         avail_locs,
-        module.params.get('operating_system')
+        module.params.get('location')
     )
 
     # and lastly, supply the mbpkgid
