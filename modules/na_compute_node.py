@@ -35,7 +35,7 @@ NAME_RE = '({0}|{0}{1}*{0})'.format('[a-zA-Z0-9]', '[a-zA-Z0-9\-]')
 HOSTNAME_RE = '({0}\.)*{0}$'.format(NAME_RE)
 MAX_DEVICES = 100
 
-ALLOWED_STATES = ['building', 'pending', 'running', 'stopping', 'present'
+ALLOWED_STATES = ['building', 'pending', 'running', 'stopping', 'present',
                   'rebooting', 'starting', 'terminated', 'stopped']
 
 # until the api gets fixed so it's more flexible
