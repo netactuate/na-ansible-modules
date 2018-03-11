@@ -457,7 +457,6 @@ def ensure_state(
         # tmp_changed is mainly for 'running' check below since building
         # a new node will put it in a 'running' state and we want to indicates
         # that it has changed (since it was built)
-        tmp_changed = False
         if node_stub is None:
             # all  states require the node to be installed so do that first.
             tmp_changed, node_stub = do_build_new_node(
@@ -471,8 +470,8 @@ def ensure_state(
             changed, node_stub = ensure_node_running(
                     hv_conn=hv_conn, node_stub=node_stub
             )
-            # update changed if we had to build it.
-            if changed != tmp_changed:
+            if 'tmp_changed' in vars():
+                # update changed if we had to build it.
                 changed = tmp_changed
 
         if desired_state == 'stopped':
