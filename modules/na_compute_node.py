@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 #
 # (c) 2018, Dennis Durling <djdtahoe@gmail.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+
+# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -243,16 +244,14 @@ def _get_node_stub(module=None, hv_conn=None, node_id=None):
     try:
         node_stub = hv_conn.ex_get_node(node_id)
     except Exception as e:
-        module.fail_json(msg="Failed to get node {0}"
-                         "with error: {1}"
+        module.fail_json(msg="Failed to get node {0} with error: {1}"
                          .format(module.params.get('hostname'), str(e)))
     return node_stub
 
 
 def _wait_for_state(
-            module=None, hv_conn=None, node_id=None,
-            timeout=600, interval=10.0,
-            desired_state=None
+    module=None, hv_conn=None, node_id=None,
+    timeout=600, interval=10.0, desired_state=None
         ):
     """Called after do_build_node to wait to make sure it built OK
     Arguments:
@@ -388,8 +387,8 @@ def do_build_absent_node(module, hv_conn, node_stub, h_parms):
 #
 ###
 def ensure_node_running(
-            module=None, hv_conn=None,
-            node_stub=None, h_parms=None
+    module=None, hv_conn=None,
+    node_stub=None, h_parms=None
         ):
     """Called when we want to just make sure the node is running"""
     changed = False
