@@ -58,6 +58,9 @@ pip install -r requirements.txt
 
 ### Playbook setting desired state to 'running'
 
+*NOTE: possible desired states you can set are
+present, running, stopped, absent*
+
 ```yaml
 - name: BUILD
   hosts: all
