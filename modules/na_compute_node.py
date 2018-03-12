@@ -516,7 +516,7 @@ def ensure_state(
             desired_state='running',
             module=None,
             hv_conn=None,
-            h_parms={}
+            h_parms=None
         ):
     """Main function call that will check desired state
     and call the appropriate function and handle the respones back to main.
