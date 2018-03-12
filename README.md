@@ -54,7 +54,19 @@ pip install -r requirements.txt
 
 # Using the modules
 
-## Example Role and inventory files
+## Example Playbook, Role and inventory files
+
+### Playbook setting desired state to 'running'
+
+```yaml
+- name: BUILD
+  hosts: all
+  remote_user: root
+  gather_facts: no
+  roles:
+    - role: install
+      state: running
+```
 
 ### Role file
 
