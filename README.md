@@ -61,12 +61,12 @@ pip install -r requirements.txt
 ```yaml
 # file: roles/install/tasks/main.yml
 - name: install
-  hv_compute_build_node:
+  na_compute_node:
     hostname: "{{ inventory_hostname }}"
     ssh_public_key: "{{ ssh_public_key }}"
     operating_system: "{{ operating_system }}"
     mbpkgid: "{{ mbpkgid }}"
-    state: running
+    state: "{{ state }}"
   register: hostvirtual_device_result
   delegate_to: localhost
 ```
@@ -75,5 +75,5 @@ pip install -r requirements.txt
 
 ```ini
 [all]
-host1.example.com ssh_public_key=keys.pub operating_system='Debian 9.0 x64 PV' mbpkgid=5551212
+host1.example.com ssh_public_key=keys.pub operating_system='Debian 9.0 x64 PV' mbpkgid=5551212 location='RDU3 - Raleigh, NC'
 ```
