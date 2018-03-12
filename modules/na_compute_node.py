@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 #
 # (c) 2018, Dennis Durling <djdtahoe@gmail.com>
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
                     'status': ['preview'],
@@ -12,7 +14,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.0',
 DOCUMENTATION = '''
 ---
 module: na_compute_node
-version_added: '2.6.0'
+version_added: "2.6.0"
 short_description: Manage virtual machines on NetActuate infrastructure.
 description:
     - Deploy newly purchaced packages.
@@ -101,10 +103,14 @@ import time
 import os
 import re
 import json
-from libcloud.compute.base import NodeAuthSSHKey
-from libcloud.compute.types import Provider
-from libcloud.compute.providers import get_driver
 from ansible.module_utils.basic import AnsibleModule
+try:
+    from libcloud.compute.base import NodeAuthSSHKey
+    from libcloud.compute.types import Provider
+    from libcloud.compute.providers import get_driver
+    HAS_LIBCLOUD = True
+except Exception:
+    HAS_LIBCLOUD = False
 
 HOSTVIRTUAL_API_KEY_ENV_VAR = "HOSTVIRTUAL_API_KEY"
 
