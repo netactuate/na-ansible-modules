@@ -248,7 +248,7 @@ def _get_node_stub(module, conn, h_params):
     return node_stub
 
 
-def _wait_for_state(module, conn, h_params, state, timeout=60, interval=10):
+def _wait_for_state(module, conn, h_params, state, timeout=600, interval=10):
     """Called after do_build_node to wait to make sure it built OK
     Arguments:
         conn:            object  libcloud connectionCls
@@ -313,8 +313,7 @@ def do_build_new_node(module, conn, h_params):
 
     # get the new version of the node, hopefully showing
     # using wait_for_build_complete defauilt timeout (10 minutes)
-    node = _wait_for_state(module, conn, h_params, 'running',
-                           timeout=600, interval=10)
+    node = _wait_for_state(module, conn, h_params, 'running')
     changed = True
     return changed, node
 
@@ -350,8 +349,7 @@ def do_build_terminated_node(module, conn, h_params, node_stub):
 
     # get the new version of the node, hopefully showing
     # using wait_for_build_complete defauilt timeout (10 minutes)
-    node = _wait_for_state(module, conn, h_params, 'running',
-                           timeout=600, interval=10)
+    node = _wait_for_state(module, conn, h_params, 'running')
     changed = True
     return changed, node
 
@@ -396,8 +394,7 @@ def ensure_node_running(module, conn, h_params, node_stub):
             else:
                 # Seems our command executed successfully
                 # so wait for it to come up.
-                node = _wait_for_state(module, conn, h_params, 'running',
-                                       timeout=300, interval=10)
+                node = _wait_for_state(module, conn, h_params, 'running')
                 changed = True
     return changed, node
 
@@ -414,8 +411,7 @@ def ensure_node_stopped(module, conn, h_params, node_stub):
                              .format(h_params['hostname']))
         else:
             # wait for the node to say it's stopped.
-            node = _wait_for_state(module, conn, h_params, 'running',
-                                   timeout=300, interval=10)
+            node = _wait_for_state(module, conn, h_params, 'stopped')
             changed = True
     return changed, node
 
@@ -456,8 +452,7 @@ def ensure_node_terminated(module, conn, h_params, node_stub):
                              .format(module.params.get('hostname')))
         else:
             # wait for the node to say it's terminated
-            node = _wait_for_state(module, conn, h_params, 'running',
-                                   timeout=120, interval=10)
+            node = _wait_for_state(module, conn, h_params, 'terminated')
             changed = True
     return changed, node
 
