@@ -139,9 +139,7 @@ def _get_valid_hostname(module):
     """
     hostname = module.params.get('hostname')
     if re.match(HOSTNAME_RE, hostname) is None:
-        module.fail_json(msg="Invalid hostname: {0}"
-                         .format(module.params.get('hostname')))
-        raise Exception("Invalid hostname: {0}".format(hostname))
+        module.fail_json(msg="Invalid hostname: {0}".format(hostname))
     return hostname
 
 
@@ -265,8 +263,10 @@ def _wait_for_state(module, conn, h_params, state, timeout=60, interval=10):
             try_node = conn.ex_get_node(h_params['mbpkgid'])
             if try_node.state == state:
                 break
-        except Exception:
-            pass
+        except Exception as e:
+            module.fail_json(
+                msg="Failed to get updated status for {0}"
+                " Error was {1}".format(h_params['hostname'], str(e)))
         time.sleep(interval)
     return try_node
 
@@ -313,8 +313,8 @@ def do_build_new_node(module, conn, h_params):
 
     # get the new version of the node, hopefully showing
     # using wait_for_build_complete defauilt timeout (10 minutes)
-    node = _wait_for_state(module, conn, h_params,
-                           'running', timeout=600, interval=10)
+    node = _wait_for_state(module, conn, h_params, 'running',
+                           timeout=600, interval=10)
     changed = True
     return changed, node
 
@@ -342,15 +342,16 @@ def do_build_terminated_node(module, conn, h_params, node_stub):
             method='POST'
         ).object
     except Exception:
-        _msg = "Failed to build node for mbpkgid {0}".format(node_stub.id)
-        raise Exception(_msg)
+        module.fail_json(msg="Failed to build node for mbpkgid {0}"
+                         .format(node_stub.id))
 
     # get the new version of the node, hopefully showing
     # that it's built and all that
 
     # get the new version of the node, hopefully showing
     # using wait_for_build_complete defauilt timeout (10 minutes)
-    node = _wait_for_state(module, conn, h_params, 'running')
+    node = _wait_for_state(module, conn, h_params, 'running',
+                           timeout=600, interval=10)
     changed = True
     return changed, node
 
@@ -383,18 +384,20 @@ def ensure_node_running(module, conn, h_params, node_stub):
             # do_build_terminated_node handles waiting for it to finish
             # also note, this call should start it so we don't need to
             # do it again below
-            changed, node = do_build_terminated_node(module, conn, h_params, node_stub)
+            changed, node = do_build_terminated_node(module, conn,
+                                                     h_params, node_stub)
         else:
             # node is installed so boot it up.
             running = conn.ex_start_node(node_stub)
             # if we don't get a positive response we need to bail
             if not running:
-                raise Exception("Seems we had trouble starting the node")
+                module.fail_json(msg="Seems we had trouble starting node {0}"
+                                 .format(h_params['hostname']))
             else:
                 # Seems our command executed successfully
                 # so wait for it to come up.
                 node = _wait_for_state(module, conn, h_params, 'running',
-                                       timeout=30, interval=10.0)
+                                       timeout=300, interval=10)
                 changed = True
     return changed, node
 
@@ -407,11 +410,12 @@ def ensure_node_stopped(module, conn, h_params, node_stub):
     if node.state != 'stopped':
         stopped = conn.ex_stop_node(node_stub)
         if not stopped:
-            raise Exception("Seems we had trouble stopping the node")
+            module.fail_json(msg="Seems we had trouble stopping the node {0}"
+                             .format(h_params['hostname']))
         else:
             # wait for the node to say it's stopped.
             node = _wait_for_state(module, conn, h_params, 'running',
-                                   timeout=30, interval=10.0)
+                                   timeout=300, interval=10)
             changed = True
     return changed, node
 
@@ -453,7 +457,7 @@ def ensure_node_terminated(module, conn, h_params, node_stub):
         else:
             # wait for the node to say it's terminated
             node = _wait_for_state(module, conn, h_params, 'running',
-                                   timeout=30, interval=10.0)
+                                   timeout=120, interval=10)
             changed = True
     return changed, node
 
@@ -592,18 +596,18 @@ def main():
     # put state into h_params too
     h_params['state'] = module.params.get('state').lower()
 
-    # get and check the hostname, raises exception if fails
+    # get and check the hostname, fail_json on error
     h_params['hostname'] = _get_valid_hostname(module)
 
     # make sure we get the ssh_key
     h_params['ssh_key'] = _get_ssh_auth(module)
 
     # get the image based on the os ID/Name provided
-    # the get_os function call will raise an exception if there is a problem
+    # the get_os function call will fail_json if there is a problem
     h_params['image'] = _get_os(module, avail_oses)
 
     # get the location based on the location ID/Name provided
-    # the get_location function call will raise an exception
+    # the get_location function call will fail_json on exception
     # if there is a problem
     h_params['location'] = _get_location(module, avail_locs)
 
