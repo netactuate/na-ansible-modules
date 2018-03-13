@@ -301,6 +301,10 @@ def do_build_new_node(module, conn, h_params):
     }
 
     # do it using the api
+    # this injects a job, which might take a minute
+    # so afterward we need to wait for a few seconds
+    # before we call _wait_for_state because that function
+    # requires the DB object to exist and will fail if it doesn't
     try:
         conn.connection.request(
             API_ROOT + '/cloud/server/build',
@@ -313,6 +317,8 @@ def do_build_new_node(module, conn, h_params):
 
     # get the new version of the node, hopefully showing
     # using wait_for_build_complete defauilt timeout (10 minutes)
+    # first though, sleep for 10 seconds to help ensure we don't fail
+    time.sleep(10)
     node = _wait_for_state(module, conn, h_params, 'running')
     changed = True
     return changed, node
