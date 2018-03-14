@@ -3,7 +3,9 @@
 This page explains, by example, how to use the Net Actuate Ansible Modules.
 The examples here will use sub-folders in the users $HOME folder.
 
-*Note: These modules are not yet included with Ansible so need to be accessed
+*Note: The module here has passed initial automated testing at Ansible and is waiting for community review!*
+
+*Note: Since these modules are not yet included with Ansible so need to be accessed
 as custom modules.  
 This means that you need to have an ENV variable set named "ANSIBLE_LIBRARY"
 to some folder on your system and then git clone this repo into that folder.*
