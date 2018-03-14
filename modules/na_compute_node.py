@@ -2,41 +2,49 @@
 # -*- coding: utf-8 -*-
 #
 # (c) 2018, Dennis Durling <djdtahoe@gmail.com>
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
+
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
+
 DOCUMENTATION = '''
 ---
 module: na_compute_node
-version_added: "2.6.0"
 short_description: Manage virtual machines on NetActuate infrastructure.
 description:
-    - Deploy newly purchaced packages.
-    - Build, destroy, start and stop previously built packages.
+  - Deploy newly purchaced packages.
+  - Build, destroy, start and stop previously built packages.
+version_added: "2.6.0"
 author: "Dennis Durling (@tahoe)"
 options:
+  auth_token:
+    description:
+      - API Key which should be set in ENV variable HOSTVIRTUAL_API_KEY
+      - C(auth_token) is required.
+  hostname:
+    description:
+      - Hostname of the node. C(name) can only be a valid hostname.
+      - Either C(name) is required.
   name:
     description:
-      - Hostname of the node.
-      - Required.
+      - Custom display name of the instances.
+      - Host name will be set to C(name) if not specified.
+      - Either C(name) or C(hostname) is required.
   ssh_public_key:
     description:
       - Path to the ssh key that will be used for node authentication.
-      - Required and currently the only method of authentication for the node.
-      - NOTE: At some point we will set up password authentication here.
+      - C(ssh_public_key) is required for host authentication setup.
   operating_system:
     description:
       - Either the ID or full name of the OS to be installed on the node.
-      - Required.
-      - NOTE: to many choices to list here. will provide a method for customers
-        to figure out which one they want.
+      - C(operating_system) is required.
+      - NOTE, to many choices to list here. Will provide a script for customers to list OSes.
   mbpkgid:
     description:
       - The purchased package ID the node is associated with.
@@ -44,61 +52,44 @@ options:
   state:
     description:
       - Desired state of the instance.
+    default: running
     choices: [ present, running, stopped, terminated ]
   location:
     description:
       - Name or id of physical location the node should be built in.
       - Required.
-      - Note: Currently once this is set it cannot be changed from ansible.
+      - Note, Currently once this is set it cannot be changed from ansible.
 '''
 
 EXAMPLES = '''
-# NOTE: State should be defined in a playbook but can also be overridden here
-#       all other values should probably be stated as variables in inventory.
-- name: Change state of a package
+# example task/main.yml file with hard coded values
+- name:
   hv_compute_node:
-    hostname: "{{ inventory_hostname }}"
-    ssh_public_key: "{{ ssh_public_key }}"
-    operating_system: "{{ operating_system }}"
-    mbpkgid: "{{ mbpkgid }}"
-    state: "{{ running }}"
-  register: hostvirtual_device_result
-  delegate_to: localhost
-
-# NOTE: Example inventory file.
-host1.example.com ssh_public_key=keys.pub operating_system='Debian 9.0 x64 PV'\
-mbpkgid=5551212 location='RDU3 - Raleigh, NC'
+    - hostname: www.ansible.com
+    - ssh_public_key: id_rsa.pub
+    - operating_system: Debian 9.0 (PV)
+    - mbpkgid: 5551212
+    - state: running
+  register:
+    - hostvirtual_device_result
+  delegate_to:
+    - localhost
 '''
 
 RETURN = '''
-Standard represenation for a device as returned by various tasks::
+---
+hostname: device_hostname
+id: device_id
+ip_addresses:
+  address: 8.8.8.8
+  address_family: 4
+  public: true
+private_ipv4: 10.100.11.129
+public_ipv4: 8.8.8.8
+public_ipv6: ::1
+state: device_state
+-'''
 
-    {
-        'id': 'device_id'
-        'hostname': 'device_hostname',
-        'state': 'device_state',
-        'ip_addresses': [
-            {
-                "address": "8.8.8.8",
-                "address_family": 4,
-                "public": true
-            },
-            {
-                "address": "::1",
-                "address_family": 6,
-                "public": true
-            },
-            {
-                "address": "10.100.11.129",
-                "address_family": 4,
-                "public": false
-            }
-        ],
-        "private_ipv4": "10.100.11.129",
-        "public_ipv4": "8.8.8.8",
-        "public_ipv6": "::1",
-    }
-'''
 
 import time
 import os
@@ -119,8 +110,7 @@ NAME_RE = '({0}|{0}{1}*{0})'.format('[a-zA-Z0-9]', r'[a-zA-Z0-9\-]')
 HOSTNAME_RE = r'({0}\.)*{0}$'.format(NAME_RE)
 MAX_DEVICES = 100
 
-ALLOWED_STATES = ['building', 'pending', 'running', 'stopping', 'present',
-                  'rebooting', 'starting', 'terminated', 'stopped']
+ALLOWED_STATES = ['running', 'present', 'terminated', 'stopped']
 
 # until the api gets fixed so it's more flexible
 API_ROOT = ''
