@@ -1,5 +1,5 @@
 # Net Actuate Ansible modules
-*Note: This module is deprecated and will probably not be updated. The newer module is located at github.com/netactuate/netactuate-compute-node and is installable via ansible-galaxy install netactuate.netactuate-compute-node
+# Note: This module is deprecated and will probably not be updated. The newer module is located at github.com/netactuate/netactuate-compute-node and is installable via ansible-galaxy install netactuate.netactuate-compute-node
 
 This page explains, by example, how to use the Net Actuate Ansible Modules.
 The examples here will use sub-folders in the users $HOME folder.
